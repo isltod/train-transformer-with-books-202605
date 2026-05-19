@@ -1,1 +1,2 @@
-# train-building-transformer-models-with-pytorch20-ptimsina
+# 트랜스포머 관련 책들을 참고해서 트랜스포머 공부
+# 강화학습, 트레이딩 연계까지 목표
