@@ -2,7 +2,7 @@ from transformers import BertTokenizer
 
 # 일단 책에는 없고 소스에만 있는 테스트 코드...
 model_name = "klue/bert-base"
-tokenizer = BertTokenizer.from_pretrained(model_name, cache_dir="data")
+tokenizer = BertTokenizer.from_pretrained(model_name)
 
 print(tokenizer.vocab_size)
 # print(tokenizer.get_vocab())
@@ -32,3 +32,4 @@ print(decoded_string2)
 
 decoded_string3 = tokenizer.decode(ids2["input_ids"], skip_special_tokens=True)
 print(decoded_string3)
+print("실행 끝...")
