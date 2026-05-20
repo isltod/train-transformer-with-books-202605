@@ -11,7 +11,7 @@ for i in range(gpu_count):
 
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # 1번 GPU만 사용
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # 0번 GPU만 사용
 
 # 파이프라인
 from transformers import pipeline
