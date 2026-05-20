@@ -39,9 +39,9 @@ print(decoded_string3)
 from datasets import load_dataset
 
 dataset = load_dataset("klue", "ynat")
-raw_train_dataset = dataset["train"]
 
-# 이 코드는 ValueError...
+# # 이 코드는 ValueError...
+# raw_train_dataset = dataset["train"]
 # tokenized_examples = tokenizer(
 #     raw_train_dataset["title"],
 #     padding="max_length",
@@ -54,27 +54,29 @@ def tokenize_function(sample):
     return tokenizer(sample["title"])
 
 
-tokenized_datasets = dataset.map(
-    tokenize_function,
-    batched=True,
-    batch_size=1000,
-    remove_columns=["guid", "title", "url", "date"],
-)
-print(tokenized_datasets)
+# 뭔가 map 함수 관련해서 안되는 모양...이거 버전 탓인가?
+# tokenized_datasets = dataset.map(
+#     tokenize_function,
+#     batched=True,
+#     batch_size=1000,
+#     remove_columns=["guid", "title", "url", "date"],
+#     load_from_cache_file=False,
+# )
+# print(tokenized_datasets)
 
-print(tokenized_datasets["train"][0]["input_ids"])
-print(type(tokenized_datasets["train"][0]["input_ids"]))
+# print(tokenized_datasets["train"][0]["input_ids"])
+# print(type(tokenized_datasets["train"][0]["input_ids"]))
 
-# 3. 뭔진 모르겠는데 collator라는 걸 하고...
-from pprint import pprint
-from transformers import DataCollatorWithPadding
+# # 3. 뭔진 모르겠는데 collator라는 걸 하고...
+# from pprint import pprint
+# from transformers import DataCollatorWithPadding
 
-batch = [tokenized_datasets["train"][i] for i in range(8)]
-print([len(sample["input_ids"]) for sample in batch])
+# batch = [tokenized_datasets["train"][i] for i in range(8)]
+# print([len(sample["input_ids"]) for sample in batch])
 
-data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-batch = data_collator(batch)
-pprint({k: v.size() for k, v in batch.items()})
+# data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+# batch = data_collator(batch)
+# pprint({k: v.size() for k, v in batch.items()})
 
 # 4. 모델을 다운받고
 from transformers import BertTokenizer, BertModel
@@ -113,28 +115,4 @@ mask_token_index = (inputs.input_ids == tokenizer.mask_token_id)[0].nonzero(
 
 predicted_token_id = logits[0, mask_token_index].argmax(axis=-1)
 print("모델이 내놓은 답은", tokenizer.decode(predicted_token_id))
-
-
-# 직접구현
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
-model_name = "google-bert/bert-base-uncased"
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-model.cuda().eval()
-
-with torch.no_grad():
-    output = model(
-        **tokenizer(
-            "유튜브 내달 2일까지 크리에이터 지원 공간 운영", return_tensors="pt"
-        ).to(model.device)
-    )
-    result = torch.softmax(output.logits.cpu(), -1)
-
-result = [
-    {"label": f"LABEL_{l}", "score": result[i, l].item()}
-    for i, l in enumerate(result.argmax(-1))
-]
-print(result)
+print("실행 끝...")

@@ -1,3 +1,18 @@
+import torch
+
+print(torch.cuda.is_available())  # True가 출력되면 GPU 사용 가능
+print(torch.version.cuda)
+gpu_count = torch.cuda.device_count()
+print("사용 가능한 GPU 개수:", gpu_count)
+
+# 3. 각 GPU의 이름 출력
+for i in range(gpu_count):
+    print(f"GPU {i} 이름: {torch.cuda.get_device_name(i)}")
+
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # 1번 GPU만 사용
+
 # 파이프라인
 from transformers import pipeline
 
@@ -10,12 +25,12 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 # 저장한 모델과 토크나이저로 파이프라인 만들기...
 # 이렇게 경로명을 모델명으로 넘기면 그 경로에서 찾아오나....
-model_name = "data/MyBertModel/"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
+# model_name = "data/MyBertModel/"
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
+# model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
-pipe = pipeline(task="text-classification", tokenizer=tokenizer, model=model)
-print(pipe("유튜브 내달 2일까지 크리에이터 지원 공간 운영"))
+# pipe = pipeline(task="text-classification", tokenizer=tokenizer, model=model)
+# print(pipe("유튜브 내달 2일까지 크리에이터 지원 공간 운영"))
 
 # 오트클래스로 파이프라인 만들기...
 model_name = "google-bert/bert-base-uncased"
@@ -26,8 +41,6 @@ pipeline = pipeline(task="text-classification", model=model, tokenizer=tokenizer
 print(pipeline("유튜브 내달 2일까지 크리에이터 지원 공간 운영"))
 
 # 파이프라인을 직접 구현하기 - 이게 코드가 길어진다고...
-import torch
-
 model_name = "google-bert/bert-base-uncased"
 model = AutoModelForSequenceClassification.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
