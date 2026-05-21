@@ -50,8 +50,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # 0번 GPU만 사용
 os.environ["TENSORBOARD_LOGGING_DIR"] = "data/logs"
 args = TrainingArguments(
     # 계속 죽다가 여기부터 아래까지 바꾸니 돌아 간다...8도 된다...결국 gra.. 아니면 fp 설정이 도움이 된다는 얘기...
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
     gradient_accumulation_steps=8,  # 배치 사이즈 대신 누적 스텝 활용
     gradient_checkpointing=True,  # Gradient Checkpointing 활성화
     fp16=True,  # 혼합 정밀도 학습 (메모리 절약)
