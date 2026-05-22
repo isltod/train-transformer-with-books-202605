@@ -28,8 +28,10 @@ def print_torch_gpu():
         print("CUDA를 사용할 수 없습니다.")
 
 
-def set_my_gpu(gpu_num):
+def get_my_gpu_device(gpu_num):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return device
 
 
 class Timer:
