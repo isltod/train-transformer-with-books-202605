@@ -137,6 +137,7 @@ class TextClassifier(nn.Module):
 
     def forward(self, x, key_padding_mask=None):
         # 순서대로 임베딩, 위치인코딩, 트랜스포머 인코딩...
+        # 임베딩에서 임베딩 차원 제곱근으로 스케일링 - 기울기 폭발/소멸 완화...
         x = self.embedding(x) * math.sqrt(self.embedding_dim)
         x = self.positional_encoding(x)
         x = self.encoder(x, src_key_padding_mask=key_padding_mask)
