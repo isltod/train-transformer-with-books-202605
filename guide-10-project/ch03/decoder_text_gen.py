@@ -137,6 +137,7 @@ class TransformerDecoder(nn.Module):
         tgt_key_padding_mask=None,  # 입력 시퀀스에서 패딩 토큰 마스킹
     ):
         # 타겟 시퀀스는 입력 시퀀스를 한 칸씩 이동시킨 거라고...
+        # 임베딩 차원 제곱근으로 스케일링 - 기울기 폭발/소멸 완화
         tgt = self.tgt_embedding(tgt) * self.d_model**0.5
         tgt = self.tgt_pos_encoder(tgt)
         print(tgt)
