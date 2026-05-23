@@ -112,7 +112,9 @@ class TextClassifier(nn.Module):
         # 위에서 만든 커스텀 위치인코딩...
         self.positional_encoding = PositionalEncoding(embedding_dim)
         # 트랜스포머 인코더 층 생성 - 레이어를 먼저 만들고 거기에 끼워넣기...
+        # 여기서 embedding_dim // nhead == 0이어야 한다...
         self.encoder_layer = nn.TransformerEncoderLayer(embedding_dim, nhead)
+        # 인코더 레이어를 실제로 인코더에 넣어 만든다..
         self.encoder = nn.TransformerEncoder(self.encoder_layer, num_layers)
         # 출력은 완전연결...
         self.fc = nn.Linear(embedding_dim, num_classes)
@@ -139,7 +141,8 @@ class TextClassifier(nn.Module):
         x = self.positional_encoding(x)
         x = self.encoder(x, src_key_padding_mask=key_padding_mask)
 
-        # 첫 번째 차원을 기준으로 나머지 차원(마지막 차원) 값의 평균값 생성
+        # 평균 풀링 - 첫 번째 차원을 평균값으로 삭제
+        # (문장 길이, 배치 크기, 임베딩 차원) -> (배치 크기, 임베딩 차원)
         x = x.mean(dim=0)
 
         # 분류 작업용 완전 연결 층
@@ -165,7 +168,6 @@ criterion = nn.BCELoss().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # 훈련 시킨다...
-# 런타임 9분~11분 소요
 num_epochs = 1
 for epoch in range(num_epochs):
     i = 0

@@ -30,7 +30,12 @@ def print_torch_gpu():
 
 def get_my_gpu_device(gpu_num):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print(f"GPU {gpu_num}: {torch.cuda.get_device_name(gpu_num)} 사용")
+    else:
+        device = torch.device("cpu")
+        print("CPU 사용")
     return device
 
 
