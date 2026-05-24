@@ -126,9 +126,89 @@ def imshow(img_tensor):
 
 
 # 이미지와 레이블 디스플레이
-fig, axes = plt.subplots(1, len(images), figsize=(12, 12))
-for idx, (image, label) in enumerate(zip(images, labels)):
-    axes[idx].imshow(imshow(image))
-    axes[idx].set_title(f"Label: {label.item()}")
-    axes[idx].axis("off")
-plt.show()
+# fig, axes = plt.subplots(1, len(images), figsize=(12, 12))
+# for idx, (image, label) in enumerate(zip(images, labels)):
+#     axes[idx].imshow(imshow(image))
+#     axes[idx].set_title(f"Label: {label.item()}")
+#     axes[idx].axis("off")
+# plt.show()
+
+
+def train(model, device, train_loader, optimizer, criterion, epoch, accelerator):
+    model.train()
+    running_loss = 0.0
+
+    for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        accelerator.backward(loss)
+        optimizer.step()
+        running_loss += loss.item()
+
+    avg_loss = running_loss / len(train_loader)
+    print(f"Epoch: {epoch}, Loss: {avg_loss:.4f}")
+
+
+from sklearn.metrics import confusion_matrix, recall_score, precision_score
+
+
+def test(model, device, test_loader, criterion, accelerator):
+    model.eval()
+    test_loss = 0
+    correct = 0
+    all_preds = []
+    all_targets = []
+
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            test_loss += criterion(output, target).item()
+            output_cpu = output.to("cpu")
+            target_cpu = target.to("cpu")
+            pred = output_cpu.argmax(dim=1, keepdim=True)
+            correct += pred.eq(target_cpu.view_as(pred)).sum().item()
+
+            all_preds.extend(pred.flatten().tolist())
+            all_targets.extend(target.flatten().tolist())
+
+    test_loss /= len(test_loader)
+    accuracy = 100.0 * correct / len(test_loader.dataset)
+    print(f"Test Loss: {test_loss:.4f}, Accuracy: {accuracy:.2f}%")
+
+    # 혼동 행렬(confusion matrix), 리콜(sensitivity) 및 specificity 계산
+    cm = confusion_matrix(all_targets, all_preds)
+    sensitivity = recall_score(all_targets, all_preds, average=None)
+    specificity = (cm.sum(axis=0) - cm.diagonal()) / cm.sum(axis=0)
+
+    for i, (sens, spec) in enumerate(zip(sensitivity, specificity)):
+        print(f"Class {i}: Sensitivity (Recall): {sens:.4f}, Specificity: {spec:.4f}")
+
+
+from accelerate import Accelerator
+from torch.optim import Adam
+
+accelerator = Accelerator()
+device = accelerator.device
+learning_rate = 1e-4
+import timm
+
+model = timm.create_model(
+    "vit_base_patch16_224", in_chans=3, num_classes=4, pretrained=True
+)
+
+optimizer = Adam(model.parameters(), lr=learning_rate)
+criterion = nn.CrossEntropyLoss()
+
+train_loader, test_loader = accelerator.prepare(train_loader, test_loader)
+model, optimizer, criterion = accelerator.prepare(model, optimizer, criterion)
+
+# 런타임 1분 이하
+# 역자 주: 실행 시간을 줄이기 위해 num_epochs를 10으로 줄임
+num_epochs = 50
+# num_epochs = 10
+for epoch in range(1, num_epochs + 1):
+    train(model, device, train_loader, optimizer, criterion, epoch, accelerator)
+    test(model, device, test_loader, criterion, accelerator)
