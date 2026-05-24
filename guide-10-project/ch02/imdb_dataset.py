@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 
 # IMDb 데이터셋 불러오기
 print("데이터셋 받기...")
-imdb_dataset = load_dataset("imdb")
+imdb_dataset = load_dataset("stanfordnlp/imdb")
 
 # 사전 학습 모델과 토크나이저 불러오기 - 토크나이저와 모델은 쌍으로 사용하니 이름이 같다...
 print("토크나이저와 모델 설정...")
