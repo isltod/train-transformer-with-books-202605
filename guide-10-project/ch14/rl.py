@@ -1,4 +1,3 @@
-# 런타임 30초
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -88,16 +87,12 @@ class StockTradingEnv(gym.Env):
         )
         # 보상은 거래 시도 전후 평가 자산 차이로...
         reward = asset_value_after_action - asset_value_before_action
-        
+
         # Gymnasium 규격에 맞춰 terminated와 truncated를 구분하여 반환
         terminated = self.balance <= 0
         truncated = self.current_step >= self.max_steps
 
         return obs, reward, terminated, truncated, {}
-
-    def seed(self, seed):
-        random.seed(seed)
-        np.random.seed(seed)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -121,23 +116,30 @@ class StockTradingEnv(gym.Env):
         return
 
 
-df = yf.download("AAPL", start="2020-01-01", end="2023-01-01")
+def get_yf_data(symbol, start_date, end_date):
+    df = yf.download(symbol, start_date, end_date)
 
-# yfinance에서 반환한 DataFrame의 컬럼이 MultiIndex 형태인 경우 평탄화(Flat) 처리
-if isinstance(df.columns, pd.MultiIndex):
-    df.columns = df.columns.droplevel(1)
+    # yfinance에서 반환한 DataFrame의 컬럼이 MultiIndex 형태인 경우 평탄화(Flat) 처리
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.droplevel(1)
 
-# observation_space shape인 (5, 5)에 대응하도록 5개의 핵심 컬럼만 선택하여 고정
-df = df[['Close', 'High', 'Low', 'Open', 'Volume']]
-df = df.sort_index()
+    # observation_space shape인 (5, 5)에 대응하도록 5개의 핵심 컬럼만 선택하여 고정
+    df = df[["Close", "High", "Low", "Open", "Volume"]]
+    df = df.sort_index()
 
-# 여기서 날짜 인덱스는 없어지고...
-df = df.reset_index(drop=True)
-# 새 df 복사해서 만들고...일간 백분율 변동으로 바꾸기...
-pct_df = df.copy(deep=True)
-pct_df = pct_df.pct_change()
-print(df.head(20))
-print(pct_df.head(20))
+    # 여기서 날짜 인덱스는 없어지고...
+    df = df.reset_index(drop=True)
+    # 새 df 복사해서 만들고...일간 백분율 변동으로 바꾸기...
+    pct_df = df.copy(deep=True)
+    pct_df = pct_df.pct_change()
+    print(df.head(20))
+    print(pct_df.head(20))
+
+    return df, pct_df
+
+
+# 훈련 데이터는 애플 2020~2022
+df, pct_df = get_yf_data("AAPL", "2020-01-01", "2023-01-01")
 
 # DummyVecEnv 클래스는 환경에 대한 벡터화된 래퍼를 생성
 env = DummyVecEnv([lambda: StockTradingEnv(df, pct_df)])
@@ -145,4 +147,131 @@ env = DummyVecEnv([lambda: StockTradingEnv(df, pct_df)])
 model = PPO("MlpPolicy", env, verbose=1, device="cpu")
 model.learn(total_timesteps=10000)
 
-# model.save("../../data/ppo_stock")
+md_path = "../../data/ppo_stock"
+model.save(md_path)
+
+
+# 추론에는 이 클래스를 쓴다는데...위에 StockTradingEnv 클래스와 거의 같은 코드
+class StockTradingTestEnv(StockTradingEnv):
+    """
+    여기에 이 주석을 달아야 설명에 뜨나?
+    추론에는 이 클래스를 쓴다는데...위에 StockTradingEnv 클래스와 거의 같은 코드
+    """
+
+    def __init__(self, df, pct_df, initial_balance=10000):
+        super().__init__(df, pct_df)
+        self.initial_balance = initial_balance
+        self.balance = self.initial_balance
+        self.train_cnt_epoch = len(self.df.loc[:, "Close"].values) - 2 - 6
+
+    def step(self, action):
+        self.current_step += 1
+        action_type = action[0]
+        amount = action[1]
+
+        # 원저자 코드에 다음 두 줄 뒤에 item()을 추가하여 에러 방지
+        close_price = self.df.loc[self.current_step, "Close"].item()
+        next_day_close_price = self.df.loc[self.current_step + 1, "Close"].item()
+
+        shares_bought = 0
+        shares_sold = 0
+        asset_value_before_action = self.balance + self.shares_held * close_price
+
+        if action_type < 1:
+            # 보유(Hold)
+            pass
+        elif action_type < 2:
+            # 구매(Buy)
+            total_possible = int(self.balance / close_price)
+            shares_bought = int(total_possible * amount)
+            total_cost = shares_bought * close_price
+            self.balance -= total_cost
+            self.shares_held += shares_bought
+        elif action_type < 3:
+            # 판매(Sell)
+            shares_sold = int(self.shares_held * amount)
+            self.balance += shares_sold * close_price
+            self.shares_held -= shares_sold
+
+        if self.current_step >= len(self.df.loc[:, "Close"].values) - 6:
+            self.current_step = 6
+
+        obs = self._next_observation()
+
+        asset_value_after_action = (
+            self.balance + self.shares_held * next_day_close_price
+        )
+        reward = asset_value_after_action - asset_value_before_action
+
+        # 이 부분만 다른데...자본금 0 조건은 없고, max_step 대신 train_cnt_epoch 설정 만큼만 돌아가도록...
+        # Gymnasium 규격에 맞춰 terminated와 truncated를 구분하여 반환
+        if self.current_step >= self.train_cnt_epoch:
+            terminated = True
+            truncated = True
+        else:
+            terminated = False
+            truncated = False
+
+        return obs, reward, terminated, truncated, {}
+
+
+import matplotlib.pyplot as plt
+from stable_baselines3 import PPO
+
+# 저장된 모델 불러오기
+model = PPO.load(md_path)
+
+# 추론이라기보다는 새 데이터셋으로 시험하는 모양
+df_2023, pct_df_2023 = get_yf_data("AAPL", "2023-01-01", "2023-05-30")
+
+# 새 데이터용 환경 설정 및 (학습에서 얻은) final balance 조정
+final_training_balance = 100000
+env = DummyVecEnv(
+    [
+        lambda: StockTradingTestEnv(
+            df_2023, pct_df_2023, initial_balance=final_training_balance
+        )
+    ]
+)
+
+# 환경의 초기 상태 설정
+state = env.reset()
+done = False
+
+# 이 리스트는 각 스텝(step)에서 포트폴리오의 값을 저장
+portfolio_values = []
+
+while not done:
+    # 모델(model)로부터 action 구하기
+    action, _ = model.predict(state)
+    # print('printing action')
+    # print(action)
+
+    # 환경에서 첫 스텝을 실행하고 새로운 상태(state)와 보상(reward) 구하기
+    state, reward, done, info = env.step(action)
+
+    if not done:
+        # 이게 현재 평가 자산인 듯...
+        portfolio_value = env.envs[0].balance + (
+            env.envs[0].shares_held
+            * env.envs[0].df.loc[env.envs[0].current_step, "Close"]
+        )
+        # print('balance', env.envs[0].balance)
+        # print('shares_held', env.envs[0].shares_held)
+        # print('portfolio_value', portfolio_value)
+        # 포트폴리오 값을 리스트에 추가
+        portfolio_values.append(portfolio_value)
+        # print('portfolio_values', portfolio_values)
+        # print('current_step', env.envs[0].current_step)
+    else:
+        print("Reached the end of the data.")
+
+
+# 시간에 걸친 포트폴리오 값 디스플레이
+plt.figure(figsize=(10, 6))
+plt.plot(portfolio_values)
+plt.title("Portfolio Value Over Time")
+plt.xlabel("Step")
+plt.ylabel("Value")
+plt.show()
+# 그림을 보니 이상하게 잘 딴다...
