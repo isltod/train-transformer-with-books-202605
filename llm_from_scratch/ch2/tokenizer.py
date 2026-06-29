@@ -1,8 +1,3 @@
-# from importlib.metadata import version
-#
-# print("파이토치 버전:", version("torch"))
-# print("tiktoken 버전:", version("tiktoken"))
-
 # 1단계: 텍스트 읽고
 with open("the-verdict.txt", "r", encoding="utf-8") as f:
     raw_text = f.read()
