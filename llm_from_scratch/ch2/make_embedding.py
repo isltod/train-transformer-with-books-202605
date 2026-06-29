@@ -1,6 +1,4 @@
-import tiktoken
 import torch
-from torch.utils.data import Dataset, DataLoader
 
 # 입력 단어는 4개 있고
 input_ids = torch.tensor([2, 3, 5, 1])
