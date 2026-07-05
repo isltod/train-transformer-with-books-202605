@@ -18,9 +18,6 @@ d_out = 2  # 출력 임베딩 크기, d=2
 torch.manual_seed(123)
 # 배치 흉내를 위해 input을 행으로 쌓기...(배치 2, 단어 수 6, 임베딩 3)
 batch = torch.stack((inputs, inputs), dim=0)
-print(
-    batch.shape
-)  # 각각 여섯 개의 토큰으로 구성된 두 개의 입력. 각 토큰의 임베딩 차원은 3입니다.
 
 
 class CausalAttention(nn.Module):
@@ -63,12 +60,17 @@ class CausalAttention(nn.Module):
         return context_vec
 
 
-# batch는 (배치, 단어 수, 임베딩)이므로 그 중 단어 수를 context_length로...
-context_length = batch.shape[1]
-ca = CausalAttention(d_in, d_out, context_length, 0.0)
+if __name__ == "__main__":
+    print(
+        batch.shape
+    )  # 각각 여섯 개의 토큰으로 구성된 두 개의 입력. 각 토큰의 임베딩 차원은 3입니다.
 
-# 순전파로 맥락 벡터 구하고...
-context_vecs = ca(batch)
+    # batch는 (배치, 단어 수, 임베딩)이므로 그 중 단어 수를 context_length로...
+    context_length = batch.shape[1]
+    ca = CausalAttention(d_in, d_out, context_length, 0.0)
 
-print(context_vecs)
-print("context_vecs.shape:", context_vecs.shape)
+    # 순전파로 맥락 벡터 구하고...
+    context_vecs = ca(batch)
+
+    print(context_vecs)
+    print("context_vecs.shape:", context_vecs.shape)
