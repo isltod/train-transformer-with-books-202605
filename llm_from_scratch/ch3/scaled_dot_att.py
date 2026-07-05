@@ -47,7 +47,7 @@ attn_scores_2 = (
 )  # 주어진 쿼리에 대한 모든 어텐션 점수 (1,2)x(2,6) = (1,6)
 print(attn_scores_2)
 
-# 3단계: 중요도 점수 α 계산 - 소프트맥스 처리...키 차원의 제곱근으로 스케일링?
+# 3단계: 중요도 점수 α 계산 - 여기서 키 임베딩 차원의 제곱근으로 스케일링
 d_k = keys.shape[1]
 attn_weights_2 = torch.softmax(attn_scores_2 / d_k**0.5, dim=-1)
 print(attn_weights_2)
