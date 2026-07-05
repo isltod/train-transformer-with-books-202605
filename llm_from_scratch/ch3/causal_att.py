@@ -57,3 +57,13 @@ attn_weights = torch.softmax(masked / keys.shape[-1] ** 0.5, dim=-1)
 print(attn_weights)
 
 # 근데 결국은 둘이 단계 수는 같은거 같은데...아무튼 아래 방법이 더 세련되긴 하네...
+
+# 드롭아웃까지 여기서...
+torch.manual_seed(123)
+dropout = torch.nn.Dropout(0.5)  # 50% 드롭아웃 비율
+example = torch.ones(6, 6)  # 1로 채워진 행렬을 만듭니다.
+print(example)
+# 근데 드롭아웃을 적용하니 1이 2배가 됐다..
+print(dropout(example))
+# 드롭아웃은 그냥 이렇게 넣으면 끝인데...1/2를 적용해서 그런가? 2배가 된다...
+print(dropout(attn_weights))
