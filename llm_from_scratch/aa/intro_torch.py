@@ -88,6 +88,9 @@ a = torch.sigmoid(z)  # activation & output
 loss = F.binary_cross_entropy(a, y)
 print(loss)
 # 여기까지 순전파, 계산그래프를 만든다...
+"""
+A.4 자동미분
+"""
 # 여기부터 역전파
 from torch.autograd import grad
 
@@ -100,3 +103,69 @@ print(grad_L_b)
 loss.backward()
 print(w1.grad)
 print(b.grad)
+
+"""
+A.5 다층 신경망
+"""
+
+
+# nn.Module을 상속받는 클래스
+class NeuralNetwork(torch.nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+
+        # 순서대로 연결해서 layers(x)으로 순전파하려고 Sequential 사용
+        self.layers = torch.nn.Sequential(
+            # 1st hidden layer
+            torch.nn.Linear(num_inputs, 30),
+            torch.nn.ReLU(),
+            # 2nd hidden layer
+            torch.nn.Linear(30, 20),
+            torch.nn.ReLU(),
+            # output layer
+            torch.nn.Linear(20, num_outputs),
+        )
+
+    def forward(self, x):
+        logits = self.layers(x)
+        return logits
+
+
+torch.manual_seed(123)
+model = NeuralNetwork(50, 3)
+
+# 모델 구조 출력
+print(model)
+
+# 학습 매개변수면 갯수를 다 더해라...
+num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print("Total number of trainable model parameters:", num_params)
+
+# 첫 번째 레이어 w 매개변수를 출력...
+# (50,30)으로 들어갔는데 (30,50)이 나오네...50 받아서 30으로 만들어라인데...Wx 순으로 곱한다는 얘기지...
+# 그리고 마지막에 requires_grad=True...
+print(model.layers[0].weight)
+print(model.layers[0].weight.shape)
+
+# 0~1 균등분포에서 (1, 50) 난수 텐서 만들기
+# 이거 헛갈리는데? 열벡터면 (50,1) 아닌가? 행벡터로 만들어서 넣는데...곱할 때 바뀌나?
+# 결과와 맞춰보면 실제 연산은 X @ w.T 모양인거 같은데...실제로도 그렇다네...
+X = torch.rand((1, 50))
+print(X.shape)
+print(bb.shape)
+
+# 순전파
+out = model(X)
+# grad_fn=<AddmmBackward0 - Addmm(행렬 곱 이후 덧셈) 연산에 대한 역전파 기울기이다...
+print(out)
+print(out.shape)
+
+# 역전파 없이 순전파만 사용(테스트나 실제 예측 등 학습 필요없는 경우)
+with torch.no_grad():
+    out = model(X)
+print(out)
+
+# 또는 실제 필요한 건 확률이지만 학습은 로짓까지만 시킨다면...
+with torch.no_grad():
+    out = torch.softmax(model(X), dim=1)
+print(out)
