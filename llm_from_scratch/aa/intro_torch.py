@@ -169,3 +169,150 @@ print(out)
 with torch.no_grad():
     out = torch.softmax(model(X), dim=1)
 print(out)
+
+"""
+A.6 데이터셋과 데이터로더
+"""
+
+X_train = torch.tensor(
+    [[-1.2, 3.1], [-0.9, 2.9], [-0.5, 2.6], [2.3, -1.1], [2.7, -1.5]]
+)
+y_train = torch.tensor([0, 0, 0, 1, 1])
+X_test = torch.tensor(
+    [
+        [-0.8, 2.8],
+        [2.6, -1.6],
+    ]
+)
+y_test = torch.tensor([0, 1])
+
+from torch.utils.data import Dataset
+
+
+class ToyDataset(Dataset):
+    # 데이터셋은 init, getitem, len 세 가지는 기본적으로 오버라이딩 해야하는 모양...
+    # shape은 필요 없는 모양...
+    def __init__(self, X, y):
+        self.features = X
+        self.labels = y
+
+    def __getitem__(self, index):
+        one_x = self.features[index]
+        one_y = self.labels[index]
+        return one_x, one_y
+
+    def __len__(self):
+        return self.labels.shape[0]
+
+
+# 데이터 넣어서 데이터셋 만들면 데이터셋은 끝...별거 없고...
+train_ds = ToyDataset(X_train, y_train)
+test_ds = ToyDataset(X_test, y_test)
+print(len(train_ds))
+
+from torch.utils.data import DataLoader
+
+torch.manual_seed(123)
+# 데이터로더는 데이터셋으로 만들고, 배치, 셔플, 워커 지정이 끝...
+train_loader = DataLoader(dataset=train_ds, batch_size=2, shuffle=True, num_workers=0)
+test_loader = DataLoader(dataset=test_ds, batch_size=2, shuffle=False, num_workers=0)
+
+for idx, (x, y) in enumerate(train_loader):
+    print(f"Batch {idx+1}:", x, y)
+
+# drop_last는 미니배치로 나눠 떨어지지 않는 마지막 부분 버리기...
+train_loader = DataLoader(
+    dataset=train_ds, batch_size=2, shuffle=True, num_workers=0, drop_last=True
+)
+
+for idx, (x, y) in enumerate(train_loader):
+    print(f"Batch {idx+1}:", x, y)
+
+""" A.7 전형적인 훈련 과정 """
+
+import torch.nn.functional as F
+
+# 1. 모델 네트워크와 옵티마이저 설정
+model = NeuralNetwork(num_inputs=2, num_outputs=2)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.5)
+
+# 2. 에포크 별로 돌면서 학습
+num_epochs = 3
+for epoch in range(num_epochs):
+
+    model.train()
+    for batch_idx, (features, labels) in enumerate(train_loader):
+        # 2.1 순전파
+        logits = model(features)
+        # 2.2 손실 계산
+        loss = F.cross_entropy(logits, labels)  # Loss function
+        # 2.3 기울기 비우고
+        optimizer.zero_grad()
+        # 2.4 역전파
+        loss.backward()
+        # 2.5 매개변수 수정
+        optimizer.step()
+
+        # 2.6 진행 보고
+        print(
+            f"Epoch: {epoch+1:03d}/{num_epochs:03d}"
+            f" | Batch {batch_idx:03d}/{len(train_loader):03d}"
+            f" | Train/Val Loss: {loss:.2f}"
+        )
+
+    # 2.7 기타 성능 테스트 등 별도 작업(학습 끄고 진행)
+    model.eval()
+
+# 3. 샘플 예측으로 성능 확인
+model.eval()
+with torch.no_grad():
+    outputs = model(X_train)
+print(outputs)
+
+# 텐서 화면 출력 조절 - sci_mode=False는 지수 표시 안함
+torch.set_printoptions(sci_mode=False)
+probas = torch.softmax(outputs, dim=1)
+print(probas)
+predictions = torch.argmax(probas, dim=1)
+print(predictions)
+
+# 4. 정답과 예측 비교로 성능 평가
+predictions == y_train
+torch.sum(predictions == y_train)
+
+
+# 또는 이렇게 평가 함수로...
+def compute_accuracy(model, dataloader):
+
+    # 평가 모드 학습 안함
+    model = model.eval()
+    correct = 0.0
+    total_examples = 0
+
+    for idx, (features, labels) in enumerate(dataloader):
+
+        # 기울기 계산은 그래도 하나? 그래서 다시 no_grad
+        with torch.no_grad():
+            # 평가에서는 제대로 소프트맥스 확률 필요없고
+            logits = model(features)
+
+        predictions = torch.argmax(logits, dim=1)
+        compare = labels == predictions
+        # 맞은 거 갯수, 총 갯수 누적해서
+        correct += torch.sum(compare)
+        total_examples += len(compare)
+
+    # 나눠주면 정확도...
+    return (correct / total_examples).item()
+
+
+print(compute_accuracy(model, train_loader))
+
+""" A.8 모델 저장했다 불러오기 """
+
+# 저장은 그냥 간단하게 state_dict에 경로만 주면 끝이고..덮어쓴다...
+torch.save(model.state_dict(), "data/model.pth")
+# 새 모델은 당연히 기존 모델과 구조가 같아야 하고...
+new_model = NeuralNetwork(2, 2)
+# 불러올 때는 load_state_dict...
+new_model.load_state_dict(torch.load("data/model.pth", weights_only=True))
