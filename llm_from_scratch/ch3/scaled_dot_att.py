@@ -41,7 +41,7 @@ print("values.shape:", values.shape)
 keys_2 = keys[1]  # 파이썬 인덱스는 0부터 시작합니다.
 attn_score_22 = query_2.dot(keys_2)
 print(attn_score_22)
-# 기초에서 했듯이 쿼리를 모든 단어들(키)에 닷곱...벡터가 앞으로 나오면서 행렬 전치...
+# 기초에서 했듯이 쿼리를 모든 단어들(키)에 닷곱...벡터가 아니라 행렬이므로 전치해야 닷곱...
 attn_scores_2 = (
     query_2 @ keys.T
 )  # 주어진 쿼리에 대한 모든 어텐션 점수 (1,2)x(2,6) = (1,6)
