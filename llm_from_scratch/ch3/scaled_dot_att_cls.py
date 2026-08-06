@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 
+# 셀프 어텐션도 결국 완전연결 층들로 이뤄진 하나의 모델 네트워크...
 class SelfAttention_v1(nn.Module):
 
     def __init__(self, d_in, d_out):
@@ -19,11 +20,12 @@ class SelfAttention_v1(nn.Module):
         values = x @ self.W_value
 
         # 2 단계: 어텐션 점수 ω 계산 - 단어끼리가 아니라, 쿼리와 키로 바꾼 벡터 사이에 닷곱
-        attn_scores = queries @ keys.T  # omega
+        attn_scores = queries @ keys.T
         # 3단계: 중요도 점수 α 계산 - 소프트맥스 처리...키 차원의 제곱근으로 스케일링
         attn_weights = torch.softmax(attn_scores / keys.shape[-1] ** 0.5, dim=-1)
 
-        # 4단계: 컨텍스트 벡터를 만든다 - 이것도 α에 단어를 곱하는게 아니라 value 곱
+        # 4단계: 컨텍스트 벡터를 만든다 - (6,6)@(6,2)->(6,2)
+        # 쿼리에 대한 점수가 행이므로 6개 단어들에 대한 점수 닷곱을 다시 그 행에 넣어주는 연산
         context_vec = attn_weights @ values
         return context_vec
 
@@ -33,12 +35,13 @@ class SelfAttention_v2(nn.Module):
     def __init__(self, d_in, d_out, qkv_bias=False):
         super().__init__()
         # 버전 1과 다른 점은 여기서 Parameter 대신 Linear를 사용한다는 점...
+        # Linear는 가중치 행렬을 전치해서 보관한다...그래서 실제 계산이 x@W_T 가 되나?
         self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
 
     def forward(self, x):
-        # 1단계 쿼리, 키, 값 만들 때 행렬 곱이 아니라 순전파...
+        # 1단계 쿼리, 키, 값 만들 때 Linear 층은 행렬 곱이 아니라 순전파로...
         keys = self.W_key(x)
         queries = self.W_query(x)
         values = self.W_value(x)
