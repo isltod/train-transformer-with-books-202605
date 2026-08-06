@@ -2,6 +2,7 @@ import torch
 
 print(torch.__version__)
 print(torch.cuda.is_available())
+print("Number of GPUs available:", torch.cuda.device_count())
 
 # 계산은 기본적으로 CPU
 tensor_1 = torch.tensor([1.0, 2.0, 3.0])
