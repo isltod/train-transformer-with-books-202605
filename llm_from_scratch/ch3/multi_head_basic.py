@@ -17,6 +17,7 @@ class MultiHeadAttentionWrapper(nn.Module):
 
     def forward(self, x):
         # 순전파는 헤드마다 돌면서 순전파 시키기 정도...그걸 마지막 차원으로 이어붙이기...결과가 (2, 6, 2+2)
+        # 근데 어차피 결과가 이어붙이기로 나온다면, x(6,3) @ w(3,2) -> (6,2)인데, w를 (3,4)로 하면 (6,4)가 나오잖아...
         return torch.cat([head(x) for head in self.heads], dim=-1)
 
 
