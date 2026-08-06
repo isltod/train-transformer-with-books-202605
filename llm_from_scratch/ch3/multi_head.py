@@ -6,8 +6,7 @@ from batch_casual import batch
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
         super().__init__()
-        # 여기 d_out은 개별 dout x 헤드 수이므로 당연히 나눠 떨어져야 한다...
-        # 일단 d_out = 2, 각 맥락 벡터 차원 d_out은 1
+        # 여기 d_out은 개별 dout x 헤드 수, 여기선 개별 맥락 벡터 dout이 1로 줄어서 d_out = 2
         assert d_out % num_heads == 0, "d_out은 num_heads로 나누어 떨어져야 합니다"
 
         self.d_out = d_out
@@ -16,7 +15,7 @@ class MultiHeadAttention(nn.Module):
             d_out // num_heads
         )  # 원하는 출력 차원에 맞도록 투영 차원을 낮춥니다.
 
-        # 쿼리, 키, 값 가중치는 앞과 같고...
+        # 쿼리, 키, 값 가중치 마지막 차원은 num_heads 만큼 이어붙인 차원(1 x 2 = 2)
         self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
@@ -39,7 +38,7 @@ class MultiHeadAttention(nn.Module):
         # 넘지 않는지 확인하기 때문에 문제가 되지 않습니다.
 
         # 키, 쿼리, 값 행렬을 만드는 건 앞과 같고...
-        keys = self.W_key(x)  # 크기: (b, num_tokens, d_out)
+        keys = self.W_key(x)  # 크기: (b, num_tokens, d_out=개별out x num_heads)
         queries = self.W_query(x)
         values = self.W_value(x)
 
@@ -50,7 +49,7 @@ class MultiHeadAttention(nn.Module):
         values = values.view(b, num_tokens, self.num_heads, self.head_dim)
         queries = queries.view(b, num_tokens, self.num_heads, self.head_dim)
 
-        # 결국 중요한 건 단어 수, 단어 표현 차원이므로, 텐서 곱에서 이 둘이 맨 뒤로 가도록 전치...
+        # 결국 어텐션 연산은 단어대 단어 연산이므로 연산될 차원 둘(단어순서, 단어표현)이 맨 뒤로 가도록 전치...
         # 전치: (b, num_tokens, num_heads, head_dim) -> (b, num_heads, num_tokens, head_dim)
         # (2,6,2,1) -> (2,2,6,1)
         keys = keys.transpose(1, 2)
@@ -58,12 +57,13 @@ class MultiHeadAttention(nn.Module):
         values = values.transpose(1, 2)
 
         # 코잘 마스크로 스케일드 점곱 어텐션(셀프 어텐션)을 계산합니다.
-        # (2,2,6,1) x (2,2,1,6) = (2,2,6,6)...텐서 곱은 항상 끝에 두 차원을 맞춰주는 모양...
+        # (2,2,6,1) x (2,2,1,6) = (2,2,6,6)...단어대 단어 닷곱이므로 (단어순서, 단어표현) 전치해서 곱...
         attn_scores = queries @ keys.transpose(
             2, 3
         )  # 각 헤드에 대해 점곱을 수행합니다.
 
         # 마스크를 불리언 타입으로 만들고 토큰 개수로 자르고, 상삼각을 -inf로 채우는건 같고...
+        # 차원이 늘어났지만 어차피 2차원 행렬을 브로드캐스팅...
         mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
         attn_scores.masked_fill_(mask_bool, -torch.inf)
 
