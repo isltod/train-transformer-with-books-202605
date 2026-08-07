@@ -256,13 +256,13 @@ while not done:
             env.envs[0].shares_held
             * env.envs[0].df.loc[env.envs[0].current_step, "Close"]
         )
-        # print('balance', env.envs[0].balance)
-        # print('shares_held', env.envs[0].shares_held)
+        # print('balance', .env.envs[0].balance)
+        # print('shares_held', .env.envs[0].shares_held)
         # print('portfolio_value', portfolio_value)
         # 포트폴리오 값을 리스트에 추가
         portfolio_values.append(portfolio_value)
         # print('portfolio_values', portfolio_values)
-        # print('current_step', env.envs[0].current_step)
+        # print('current_step', .env.envs[0].current_step)
     else:
         print("Reached the end of the data.")
 
