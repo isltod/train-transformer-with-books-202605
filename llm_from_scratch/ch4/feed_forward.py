@@ -18,10 +18,12 @@ class FeedForward(nn.Module):
         return self.layers(x)
 
 
-print(GPT_CONFIG_124M["emb_dim"])
-ffn = FeedForward(GPT_CONFIG_124M)
+if __name__ == "__main__":
+    cfg = GPT_CONFIG_124M()
+    print(GPT_CONFIG_124M["emb_dim"])
+    ffn = FeedForward(GPT_CONFIG_124M)
 
-# 입력 크기: [batch_size, num_token, emb_size]
-x = torch.rand(2, 3, 768)
-out = ffn(x)
-print(out.shape)
+    # 입력 크기: [batch_size, num_token, emb_size]
+    x = torch.rand(2, 3, 768)
+    out = ffn(x)
+    print(out.shape)
