@@ -1,3 +1,8 @@
+import torch
+import torch.nn as nn
+import tiktoken
+from transformers import GPT2Tokenizer
+
 GPT_CONFIG_124M = {
     "vocab_size": 50257,  # 어휘사전 크기
     "context_length": 1024,  # 문맥 길이
@@ -7,8 +12,6 @@ GPT_CONFIG_124M = {
     "drop_rate": 0.1,  # 드롭아웃 비율
     "qkv_bias": False,  # 쿼리, 키, 값을 만들 때 편향 포함 여부
 }
-import torch
-import torch.nn as nn
 
 
 class DummyGPTModel(nn.Module):
@@ -70,23 +73,23 @@ class DummyLayerNorm(nn.Module):
         return x
 
 
-import tiktoken
+if __name__ == "__main__":
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    tokenizer = tiktoken.get_encoding("gpt2")
 
-tokenizer = tiktoken.get_encoding("gpt2")
+    batch = []
 
-batch = []
+    txt1 = "Every effort moves you"
+    txt2 = "Every day holds a"
 
-txt1 = "Every effort moves you"
-txt2 = "Every day holds a"
+    batch.append(torch.tensor(tokenizer.encode(txt1)))
+    batch.append(torch.tensor(tokenizer.encode(txt2)))
+    batch = torch.stack(batch, dim=0)
+    print(batch)
 
-batch.append(torch.tensor(tokenizer.encode(txt1)))
-batch.append(torch.tensor(tokenizer.encode(txt2)))
-batch = torch.stack(batch, dim=0)
-print(batch)
+    torch.manual_seed(123)
+    model = DummyGPTModel(GPT_CONFIG_124M)
 
-torch.manual_seed(123)
-model = DummyGPTModel(GPT_CONFIG_124M)
-
-logits = model(batch)
-print("출력 크기:", logits.shape)
-print(logits)
+    logits = model(batch)
+    print("출력 크기:", logits.shape)
+    print(logits)
