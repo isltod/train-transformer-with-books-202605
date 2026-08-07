@@ -41,6 +41,35 @@ class GPTModel(nn.Module):
         return logits
 
 
+def generate_text_simple(model, idx, max_new_tokens, context_size):
+
+    # 맨 처음 idx는 현재 문장이 담긴 (batch, n_tokens) 크기의 인덱스 배열로 시작
+
+    for _ in range(max_new_tokens):
+        # 현재 문장이 모델이 지원하는 문맥 크기를 초과하면 잘라냅니다.
+        # 예를 들어, LLM이 5개 토큰만 지원하고 입력 문장의 크기가 10이라면,
+        # 마지막 5개 토큰만 문맥으로 사용합니다.
+        idx_cond = idx[:, -context_size:]
+
+        # 예측을 만듭니다.
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        # 문장의 마지막 단어만 뽑아서 사용 (batch, n_token, vocab_size) -> (batch, vocab_size)
+        logits = logits[:, -1, :]
+
+        # 확률을 얻기 위해 소프트맥스를 적용합니다.
+        probas = torch.softmax(logits, dim=-1)  # (batch, vocab_size)
+
+        # 가장 높은 확률 값을 가진 항목의 인덱스를 얻습니다. - 이 방식은 greedy decoding이라고...
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)  # (batch, 1)
+
+        # 선택한 인덱스를 현재 시퀀스에 추가합니다. (배치, 토큰 ID들)의 토큰 ID들 차원 마지막에 예측한 ID 추가
+        idx = torch.cat((idx, idx_next), dim=1)  # (batch, n_tokens+1)
+
+    return idx
+
+
 if __name__ == "__main__":
     # 허깅페이스 경고 처리 - 깃허브에 secret 올릴 수 없으니 .env 파일로 처리...
     # ..env 파일 불러오기
@@ -98,3 +127,29 @@ if __name__ == "__main__":
     # 다시 메가바이트로 변환합니다.
     total_size_mb = total_size_bytes / (1024 * 1024)
     print(f"모델에 필요한 메모리 공간: {total_size_mb:.2f} MB")
+
+    # 간단한 텍스트 생성 예제
+    start_context = "Hello, I am"
+    # ID 묶음으로 바꾸고
+    encoded = tokenizer.encode(start_context)
+    print("인코딩된 ID:", encoded)
+    # 배치 차원 추가하고
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+    print("encoded_tensor.shape:", encoded_tensor.shape)
+
+    # 여기서는 실제로 드롭아웃이 있으니 그걸 끈다...
+    model.eval()
+    # ID 묶음으로 된 텐서를 넘겨 모델이 순차적으로 후속 단어를 하나씩 생성...
+    out = generate_text_simple(
+        model=model,
+        idx=encoded_tensor,
+        max_new_tokens=6,
+        context_size=GPT_CONFIG_124M["context_length"],
+    )
+    # 결과는 단어 ID들이 될테고...max_new_tokens=6 이니까 총 10개가 나올거고,
+    print("출력:", out)
+    print("출력 길이:", len(out[0]))
+
+    # 그걸 다시 단어로 바꾸기 - 학습되질 않았으니 문장은 엉망인게 당연...
+    decoded_text = tokenizer.decode(out.squeeze(0).tolist())
+    print(decoded_text)
