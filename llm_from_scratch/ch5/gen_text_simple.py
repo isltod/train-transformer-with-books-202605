@@ -14,8 +14,6 @@ GPT_CONFIG_124M = {
 
 torch.manual_seed(123)
 model = GPTModel(GPT_CONFIG_124M)
-# 추론 시에는 드롭아웃을 비활성화합니다
-model.eval()
 
 
 def text_to_token_ids(text, tokenizer):
@@ -29,9 +27,12 @@ def token_ids_to_text(token_ids, tokenizer):
     return tokenizer.decode(flat.tolist())
 
 
-start_context = "Every effort moves you"
-tokenizer = tiktoken.get_encoding("gpt2")
+# 추론 시에는 드롭아웃을 비활성화합니다
+model.eval()
 
+start_context = "Every effort moves you"
+
+tokenizer = tiktoken.get_encoding("gpt2")
 token_ids = generate_text_simple(
     model=model,
     idx=text_to_token_ids(start_context, tokenizer),
