@@ -44,18 +44,24 @@ gpt.eval()
 
 
 # OpenAI GPT2 가중치를 myGPT 가중치에 할당하기...
+# 근데 이걸 왜 load 같은 함수를 사용 못하고 하나하나 처리해야 하지? tensorflow 구조를 pytroch로 옮겨서 그런가?
 def assign(left, right):
     if left.shape != right.shape:
         raise ValueError(f"크기가 다릅니다. left: {left.shape}, right: {right.shape}")
+    # 마지막은 훈련 가능한 토치 텐서로 반환
     return torch.nn.Parameter(torch.tensor(right))
 
 
 def load_weights_into_gpt(gpt, params):
     # OpenAI 매개변수들을 내가 만든 모델이 넣는데...사전 키가 이렇다는 건 그냥 받아들여야...
+    # 위치 임베딩과 토큰 임베딩 가중치...
     gpt.pos_emb.weight = assign(gpt.pos_emb.weight, params["wpe"])
+    # 토큰 임베딩 가중치는 그대로 마지막 출력 임베딩 가중치에도 사용...
     gpt.tok_emb.weight = assign(gpt.tok_emb.weight, params["wte"])
 
+    # 트랜스포머 블록의 트랜스포머마다 반복하는 모양이고...
     for b in range(len(params["blocks"])):
+        # 어텐션 query, key, value 가중치
         q_w, k_w, v_w = np.split(
             (params["blocks"][b]["attn"]["c_attn"])["w"], 3, axis=-1
         )
@@ -69,6 +75,7 @@ def load_weights_into_gpt(gpt, params):
             gpt.trf_blocks[b].att.W_value.weight, v_w.T
         )
 
+        # 어텐션 편향
         q_b, k_b, v_b = np.split(
             (params["blocks"][b]["attn"]["c_attn"])["b"], 3, axis=-1
         )
@@ -80,6 +87,7 @@ def load_weights_into_gpt(gpt, params):
             gpt.trf_blocks[b].att.W_value.bias, v_b
         )
 
+        # 출력 가중치와 편향
         gpt.trf_blocks[b].att.out_proj.weight = assign(
             gpt.trf_blocks[b].att.out_proj.weight,
             params["blocks"][b]["attn"]["c_proj"]["w"].T,
@@ -89,6 +97,7 @@ def load_weights_into_gpt(gpt, params):
             params["blocks"][b]["attn"]["c_proj"]["b"],
         )
 
+        # 피드 포워드 가중치와 편향
         gpt.trf_blocks[b].ff.layers[0].weight = assign(
             gpt.trf_blocks[b].ff.layers[0].weight,
             params["blocks"][b]["mlp"]["c_fc"]["w"].T,
@@ -105,6 +114,7 @@ def load_weights_into_gpt(gpt, params):
             params["blocks"][b]["mlp"]["c_proj"]["b"],
         )
 
+        # 층 정규화 가중치와 편향...
         gpt.trf_blocks[b].norm1.scale = assign(
             gpt.trf_blocks[b].norm1.scale, params["blocks"][b]["ln_1"]["g"]
         )
@@ -118,8 +128,10 @@ def load_weights_into_gpt(gpt, params):
             gpt.trf_blocks[b].norm2.shift, params["blocks"][b]["ln_2"]["b"]
         )
 
+    # 최종 정규화, 출력...
     gpt.final_norm.scale = assign(gpt.final_norm.scale, params["g"])
     gpt.final_norm.shift = assign(gpt.final_norm.shift, params["b"])
+    # 마지막 출력층은 토큰 임베딩 가중치 그대로 사용
     gpt.out_head.weight = assign(gpt.out_head.weight, params["wte"])
 
 
@@ -138,6 +150,7 @@ gpt.to(device)
 
 torch.manual_seed(123)
 
+# 테스트 문장 생성...
 token_ids = generate(
     model=gpt,
     idx=text_to_token_ids("Every effort moves you", tokenizer).to(device),

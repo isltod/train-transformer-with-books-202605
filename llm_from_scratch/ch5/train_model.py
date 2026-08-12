@@ -4,12 +4,9 @@ import torch
 import time
 from accelerate import Accelerator
 from calc_loss import calc_loss_batch, calc_loss_loader, load_dataset_and_loaders
-from gen_text_simple import (
-    text_to_token_ids,
-    token_ids_to_text,
-    GPT_CONFIG_124M,
-)
+from gen_text_simple import text_to_token_ids, token_ids_to_text, GPT_CONFIG_124M
 from previous_chapters import GPTModel, generate_text_simple
+from pathlib import Path
 
 
 def train_model_simple(
@@ -173,10 +170,12 @@ if __name__ == "__main__":
 
     # 모델과 옵티마이저를 저장
     # 간단하게 가중치만 저장하려면 torch.save(model.state_dict(), "model.pth")
+    save_dir = Path(__file__).resolve().parents[2] / "data"
+    save_path = save_dir / "toy_gpt2_params_and_optimizer.pth"
     torch.save(
         {
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
         },
-        "model_and_optimizer.pth",
+        save_path,
     )
