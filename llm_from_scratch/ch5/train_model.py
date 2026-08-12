@@ -170,3 +170,13 @@ if __name__ == "__main__":
     # 훈련 및 검증 손실 변화 시각화
     epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
     plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+
+    # 모델과 옵티마이저를 저장
+    # 간단하게 가중치만 저장하려면 torch.save(model.state_dict(), "model.pth")
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+        },
+        "model_and_optimizer.pth",
+    )
