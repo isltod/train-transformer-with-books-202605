@@ -12,14 +12,20 @@ import random
 from torch.optim import AdamW
 from transformers import BertForPreTraining, BertConfig
 import sys
+from pathlib import Path
 
-sys.path.append("../../")
+# 현재 스크립트 파일(make_llm.py)의 디렉토리 및 프로젝트 루트 디렉토리 설정
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[1]  # guide-10-project의 상위 루트 디렉토리
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
 from wolf import Timer
 
-# # 처음에 한 번은 실행되야 한다...
-# import nltk
-#
-# nltk.download("punkt_tab")
+import nltk
+
+nltk.download("punkt_tab")
 
 
 def create_sentence_dataframe(df):
@@ -42,7 +48,8 @@ def create_sentence_dataframe(df):
 
 
 # medical_data.csv
-data_txt = pd.read_csv("../../data/medical_data.csv")
+data_path = PROJECT_ROOT / "data" / "medical_data.csv"
+data_txt = pd.read_csv(data_path)
 pd.options.display.max_colwidth = 100
 data = create_sentence_dataframe(data_txt)
 print(data.shape)
@@ -232,6 +239,6 @@ with Timer():
 
 print("Training complete!")
 # 원서와 달리 다음 구글 드라이브에 모델을 저장
-save_directory = "../../data/pretrained_bert/"
+save_directory = PROJECT_ROOT / "data" / "pretrained_bert"
 model.save_pretrained(save_directory)
 tokenizer.save_pretrained(save_directory)

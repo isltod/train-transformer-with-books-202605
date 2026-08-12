@@ -1,79 +1,52 @@
+import os
 import torch
-from gen_text_simple import tokenizer, GPT_CONFIG_124M, model
-from previous_chapters import create_dataloader_v1
+import tiktoken
+from gen_text_simple import GPT_CONFIG_124M
+from previous_chapters import create_dataloader_v1, GPTModel
+from pathlib import Path
 
-# 1. 데이터를 로드하고
-file_path = "the-verdict.txt"
-with open(file_path, "r", encoding="utf-8") as file:
-    text_data = file.read()
-# 처음 99개 문자
-print(text_data[:99])
-# 마지막 99개 문자
-print(text_data[-99:])
-
-total_characters = len(text_data)
-total_tokens = len(tokenizer.encode(text_data))
-print("문자:", total_characters)
-print("토큰:", total_tokens)
+# 파일 경로를 상대경로/절대경로 호환성 있게 설정
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_FILE_PATH = SCRIPT_DIR / "the-verdict.txt"
 
 
-# 2. 데이터 로더를 준비한다
-# 훈련 세트 비율
-train_ratio = 0.90
-# 진짜 이런 식으로 토큰화하지 않은 상태에서 먼저 문장을 나누네...글자 단위로 엉뚱한 데서 끊어지는데...
-split_idx = int(train_ratio * len(text_data))
-train_data = text_data[:split_idx]
-val_data = text_data[split_idx:]
-print(train_data[-10:])
-print(val_data[:10])
+def load_dataset_and_loaders(file_path=DEFAULT_FILE_PATH, batch_size=2):
+    tokenizer = tiktoken.get_encoding("gpt2")
+    with open(file_path, "r", encoding="utf-8") as file:
+        text_data = file.read()
 
-torch.manual_seed(123)
-train_loader = create_dataloader_v1(
-    train_data,
-    batch_size=2,
-    max_length=GPT_CONFIG_124M["context_length"],
-    stride=GPT_CONFIG_124M["context_length"],
-    drop_last=True,
-    shuffle=True,
-    num_workers=0,
-)
+    train_ratio = 0.90
+    split_idx = int(train_ratio * len(text_data))
+    train_data = text_data[:split_idx]
+    val_data = text_data[split_idx:]
 
-val_loader = create_dataloader_v1(
-    val_data,
-    batch_size=2,
-    max_length=GPT_CONFIG_124M["context_length"],
-    stride=GPT_CONFIG_124M["context_length"],
-    # 검증 데이터는 마지막에 배치 크기 안 맞아도 사용하네...
-    drop_last=False,
-    shuffle=False,
-    num_workers=0,
-)
-# 데이터 로더 테스트...
-print("훈련 데이터 로더:")
-for x, y in train_loader:
-    # 배치 2이고 예제는 문장 길이를 256개 단어로 한다고 했으니 (2, 256) 나올테고...
-    print(x.shape, y.shape)
+    torch.manual_seed(123)
+    train_loader = create_dataloader_v1(
+        train_data,
+        batch_size=batch_size,
+        max_length=GPT_CONFIG_124M["context_length"],
+        stride=GPT_CONFIG_124M["context_length"],
+        drop_last=True,
+        shuffle=True,
+        num_workers=0,
+    )
 
-print("\n검증 데이터 로더:")
-for x, y in val_loader:
-    print(x.shape, y.shape)
+    val_loader = create_dataloader_v1(
+        val_data,
+        batch_size=batch_size,
+        max_length=GPT_CONFIG_124M["context_length"],
+        stride=GPT_CONFIG_124M["context_length"],
+        drop_last=False,
+        shuffle=False,
+        num_workers=0,
+    )
 
-train_tokens = 0
-# 데이터 로더에 enumerate 같은 별다른 처리 안해줘도 for 반복마다 입력과 정답지 배치를 반환하는 모양...
-for input_batch, target_batch in train_loader:
-    train_tokens += input_batch.numel()
-
-val_tokens = 0
-for input_batch, target_batch in val_loader:
-    val_tokens += input_batch.numel()
-
-print("훈련 토큰 수:", train_tokens)
-print("검증 토큰 수:", val_tokens)
-print("모든 토큰 수:", train_tokens + val_tokens)
+    return text_data, train_loader, val_loader, tokenizer
 
 
 def calc_loss_batch(input_batch, target_batch, model, device):
-    # gpu로 배치 데이터 옮기고
+    # train_model에서 호출될 때는 Accelerator로 이미 gpu tensor라 이 코드가 필요 없는데,
+    # 그냥 한 번 더 해도 문제는 없는듯...
     input_batch, target_batch = input_batch.to(device), target_batch.to(device)
     # 순전파로 로짓(소프트맥스가 아니다...) 예측하고
     logits = model(input_batch)
@@ -97,7 +70,6 @@ def calc_loss_loader(data_loader, model, device, num_batches=None):
         # num_batches를 데이터 로더에 있는 총 배치 개수로 맞춥니다.
         num_batches = min(num_batches, len(data_loader))
 
-    print("배치 수:", num_batches)
     # 그러니까, 원래 데이터로더만 돌려도 배치들이 반환되는데, enumerate를 하면 앞에 인덱스를 붙여준다...
     for i, (input_batch, target_batch) in enumerate(data_loader):
         # 배치 수 이내에서...
@@ -111,29 +83,53 @@ def calc_loss_loader(data_loader, model, device, num_batches=None):
     return total_loss / num_batches
 
 
-# 장치 설정인데 윈도우에서는 mps가 필요없는거 아닌가?
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif torch.backends.mps.is_available():
-    # 파이토치 2.9 이상에서는 mps 결과가 안정적입니다.
-    major, minor = map(int, torch.__version__.split(".")[:2])
-    if (major, minor) >= (2, 9):
-        device = torch.device("mps")
+if __name__ == "__main__":
+    text_data, train_loader, val_loader, tokenizer = load_dataset_and_loaders()
+
+    # 처음 99개 문자
+    print(text_data[:99])
+    # 마지막 99개 문자
+    print(text_data[-99:])
+
+    total_characters = len(text_data)
+    total_tokens = len(tokenizer.encode(text_data))
+    print("문자:", total_characters)
+    print("토큰:", total_tokens)
+
+    train_tokens = 0
+    for input_batch, target_batch in train_loader:
+        train_tokens += input_batch.numel()
+
+    val_tokens = 0
+    for input_batch, target_batch in val_loader:
+        val_tokens += input_batch.numel()
+
+    print("훈련 토큰 수:", train_tokens)
+    print("검증 토큰 수:", val_tokens)
+    print("모든 토큰 수:", train_tokens + val_tokens)
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("현재 GPU 번호:", torch.cuda.current_device())
+        print("GPU 이름:", torch.cuda.get_device_name(torch.cuda.current_device()))
+    elif torch.backends.mps.is_available():
+        major, minor = map(int, torch.__version__.split(".")[:2])
+        if (major, minor) >= (2, 9):
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
     else:
+        print("GPU를 사용할 수 없습니다. CPU를 사용 중입니다.")
         device = torch.device("cpu")
-else:
-    device = torch.device("cpu")
-print(f"Using {device} device.")
 
-# nn.Module 클래스의 경우 model = model.to(device)로 할당할 필요가 없습니다.
-model.to(device)
+    model = GPTModel(GPT_CONFIG_124M)
+    model.to(device)
 
-# 데이터 로더에서 셔플링이 일어나므로 재현가능성을 위해 설정합니다.
-torch.manual_seed(123)
+    torch.manual_seed(123)
 
-with torch.no_grad():  # 모델을 아직 훈련하지 않으므로 효율성을 위해 그레이디언트 추적을 끕니다.
-    train_loss = calc_loss_loader(train_loader, model, device)
-    val_loss = calc_loss_loader(val_loader, model, device)
+    with torch.no_grad():
+        train_loss = calc_loss_loader(train_loader, model, device)
+        val_loss = calc_loss_loader(val_loader, model, device)
 
-print("훈련 손실:", train_loss)
-print("검증 손실:", val_loss)
+    print("훈련 손실:", train_loss)
+    print("검증 손실:", val_loss)

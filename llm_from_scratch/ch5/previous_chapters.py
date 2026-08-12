@@ -7,6 +7,7 @@
 # throughout Chapters 2-4.
 # This file can be run as a standalone script.
 
+import math
 import tiktoken
 import torch
 import torch.nn as nn
@@ -157,8 +158,7 @@ class GELU(nn.Module):
             * (
                 1
                 + torch.tanh(
-                    torch.sqrt(torch.tensor(2.0 / torch.pi))
-                    * (x + 0.044715 * torch.pow(x, 3))
+                    math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3))
                 )
             )
         )
@@ -238,26 +238,25 @@ class GPTModel(nn.Module):
 
 
 def generate_text_simple(model, idx, max_new_tokens, context_size):
-    # idx is (B, T) array of indices in the current context
+    # 새로 생성할 토큰 숫자만큼 반복해서...
     for _ in range(max_new_tokens):
 
-        # Crop current context if it exceeds the supported context size
-        # E.g., if LLM supports only 5 tokens, and the context size is 10
-        # then only the last 5 tokens are used as context
+        # idx는 (배치, 각 문장의 토큰 ID들) 텐서...받은 문장들이 위치 임베딩 길이보다 크면 잘라내고...
         idx_cond = idx[:, -context_size:]
 
-        # Get the predictions
+        # 역전파 끊고 모델 예측 받고
         with torch.no_grad():
             logits = model(idx_cond)
 
-        # Focus only on the last time step
-        # (batch, n_token, vocab_size) becomes (batch, vocab_size)
+        # 모델 예측 결과는 (배치, 단어 순서, 그 순서 단어가 단어 사전에 있는 단어들에 가까운 정도) 텐서를 내는데...
+        # 이 모델은 마지막 단어 1개씩 예측하고, 그걸 다시 입력으로 사용하니까 단어 순서 인덱스를 -1로 하나만 뽑는다...
+        # 즉 (batch, n_token, vocab_size) -> (batch, vocab_size)
         logits = logits[:, -1, :]
 
-        # Get the idx of the vocab entry with the highest logits value
+        # 단어 사전 단어들 중 가장 확률 높은 단어 선택
         idx_next = torch.argmax(logits, dim=-1, keepdim=True)  # (batch, 1)
 
-        # Append sampled index to the running sequence
-        idx = torch.cat((idx, idx_next), dim=1)  # (batch, n_tokens+1)
+        # 선택된 단어 ID를 (배치, 단어들) 목록에 추가하고 다음 단어 예측...
+        idx = torch.cat((idx, idx_next), dim=1)
 
     return idx
