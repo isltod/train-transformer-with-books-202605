@@ -3,6 +3,7 @@ import tiktoken
 import torch
 from previous_chapters import GPTModel, generate_text_simple
 from gen_text_simple import GPT_CONFIG_124M, text_to_token_ids, token_ids_to_text
+from pathlib import Path
 
 
 # temp scaling과 top k 적용한 텍스트 생성 함수...
@@ -60,7 +61,9 @@ def generate(
 
 if __name__ == "__main__":
     # 반면에 옵티마이저와 같이 저장된 모델을 다시 로드할 때는 load_state_dict 대신 load
-    checkpoint = torch.load("model_and_optimizer.pth", weights_only=True)
+    save_dir = Path(__file__).resolve().parents[2] / "data"
+    save_path = save_dir / "toy_gpt2_params_and_optimizer.pth"
+    checkpoint = torch.load(save_path, weights_only=True)
 
     model = GPTModel(GPT_CONFIG_124M)
     # 그리고 사전 키를 이용해서 가중치와 옵티마이저 따로 지정...
