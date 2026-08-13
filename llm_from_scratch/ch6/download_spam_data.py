@@ -33,9 +33,10 @@ def download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path):
     print(f"파일이 다운로드되어 {data_file_path}에 저장되었습니다.")
 
 
-try:
-    download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
-except (requests.exceptions.RequestException, TimeoutError) as e:
-    print(f"기본 URL 실패: {e}. 백업 URL을 시도합니다...")
-    url = "https://f001.backblazeb2.com/file/LLMs-from-scratch/sms%2Bspam%2Bcollection.zip"
-    download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
+if __name__ == "__main__":
+    try:
+        download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
+    except (requests.exceptions.RequestException, TimeoutError) as e:
+        print(f"기본 URL 실패: {e}. 백업 URL을 시도합니다...")
+        url = "https://f001.backblazeb2.com/file/LLMs-from-scratch/sms%2Bspam%2Bcollection.zip"
+        download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
