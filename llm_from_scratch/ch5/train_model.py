@@ -25,7 +25,7 @@ def train_model_simple(
     device = accelerator.device
     # 손실과 지금까지 처리한 토큰 수를 추적하기 위해 리스트를 초기화합니다.
     train_losses, val_losses, track_tokens_seen = [], [], []
-    # 학습에 사용된 토큰 수, global_step은 -1에서 시작?
+    # global_step은 에포크 무시하고 총 스텝 수...
     tokens_seen, global_step = 0, -1
 
     # 메인 훈련 루프를 시작합니다.
