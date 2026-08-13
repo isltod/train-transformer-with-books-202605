@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from ch5 import *
+import math
 
 # 15 에포크에 초기 lr과 최대치
 n_epochs = 15
@@ -13,8 +14,9 @@ print(warmup_steps)
 # 웜업 한 번에 올릴 lr
 lr_increment = (peak_lr - initial_lr) / warmup_steps
 
-global_step = -1
+min_lr = 0.1 * initial_lr
 track_lrs = []
+global_step = -1
 
 optimizer = torch.optim.AdamW(model.parameters(), weight_decay=0.1)
 
@@ -27,17 +29,17 @@ for epoch in range(n_epochs):
         if global_step < warmup_steps:
             lr = initial_lr + global_step * lr_increment
         else:
-            # 그 이후엔 최대치 사용...
-            lr = peak_lr
+            # 그 이후엔 Cosine annealing
+            progress = (global_step - warmup_steps) / (total_steps - warmup_steps)
+            # cos0 -> 1 ~ cosπ -> 0 으로 감쇠
+            lr = min_lr + (peak_lr - min_lr) * 0.5 * (1 + math.cos(math.pi * progress))
 
         # 바꾼 lr을 옵티마이저의 param_groups에 적용시켜야 작동하는 모양...
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
-        # param_groups에 적용한 lr은 다 같으니까 첫 번째만 기록했다 그래프로...
         track_lrs.append(optimizer.param_groups[0]["lr"])
 
         # Calculate loss and update weights
-        # ...
 
 plt.figure(figsize=(5, 3))
 plt.ylabel("Learning rate")
