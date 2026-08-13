@@ -85,13 +85,14 @@ test_loader = DataLoader(
     num_workers=num_workers,
     drop_last=False,
 )
+if __name__ == "__main__":
 
-print("훈련 세트 로더:")
-# 밑에서 input_batch 등을 사용하려고 만든 껍데기 for문...
-for input_batch, target_batch in train_loader:
-    pass
-print("입력 배치 차원:", input_batch.shape)
-print("레이블 배치 차원", target_batch.shape)
-print(f"{len(train_loader)}개 훈련 배치")
-print(f"{len(val_loader)}개 검증 배치")
-print(f"{len(test_loader)}개 테스트 배치")
+    print("훈련 세트 로더:")
+    # 밑에서 input_batch 등을 사용하려고 만든 껍데기 for문...
+    for input_batch, target_batch in train_loader:
+        pass
+    print("입력 배치 차원:", input_batch.shape)
+    print("레이블 배치 차원", target_batch.shape)
+    print(f"{len(train_loader)}개 훈련 배치")
+    print(f"{len(val_loader)}개 검증 배치")
+    print(f"{len(test_loader)}개 테스트 배치")
