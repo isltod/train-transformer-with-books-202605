@@ -35,27 +35,29 @@ model = GPTModel(BASE_CONFIG)
 load_weights_into_gpt(model, params)
 model.eval()
 
-# 모델이 제대로 로드되었는지 샘플 텍스트 넣고 문장 생성 테스트...
-text_1 = "Every effort moves you"
-token_ids = generate_text_simple(
-    model=model,
-    idx=text_to_token_ids(text_1, tokenizer),
-    max_new_tokens=15,
-    context_size=BASE_CONFIG["context_length"],
-)
-print(token_ids_to_text(token_ids, tokenizer))
+if __name__ == "__main__":
 
-# fine tunning 전에 분류 능력이 있나 확인한다고? 그냥 이렇게 막 질문을 넣으면 답이 나오나?
-text_2 = (
-    "Is the following text 'spam'? Answer with 'yes' or 'no':"
-    " 'You are a winner you have been specially"
-    " selected to receive $1000 cash or a $2000 award.'"
-)
-token_ids = generate_text_simple(
-    model=model,
-    idx=text_to_token_ids(text_2, tokenizer),
-    max_new_tokens=23,
-    context_size=BASE_CONFIG["context_length"],
-)
-# 당연히 엉뚱한 말을 뱉어내는데....
-print(token_ids_to_text(token_ids, tokenizer))
+    # 모델이 제대로 로드되었는지 샘플 텍스트 넣고 문장 생성 테스트...
+    text_1 = "Every effort moves you"
+    token_ids = generate_text_simple(
+        model=model,
+        idx=text_to_token_ids(text_1, tokenizer),
+        max_new_tokens=15,
+        context_size=BASE_CONFIG["context_length"],
+    )
+    print(token_ids_to_text(token_ids, tokenizer))
+
+    # fine tunning 전에 분류 능력이 있나 확인한다고? 그냥 이렇게 막 질문을 넣으면 답이 나오나?
+    text_2 = (
+        "Is the following text 'spam'? Answer with 'yes' or 'no':"
+        " 'You are a winner you have been specially"
+        " selected to receive $1000 cash or a $2000 award.'"
+    )
+    token_ids = generate_text_simple(
+        model=model,
+        idx=text_to_token_ids(text_2, tokenizer),
+        max_new_tokens=23,
+        context_size=BASE_CONFIG["context_length"],
+    )
+    # 당연히 엉뚱한 말을 뱉어내는데....
+    print(token_ids_to_text(token_ids, tokenizer))
