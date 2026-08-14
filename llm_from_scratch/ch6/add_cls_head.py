@@ -2,9 +2,6 @@ import torch
 from init_model import model, BASE_CONFIG
 from make_datatloader import tokenizer
 
-# 바꾸기 전에 모델 구조 출력
-print(model)
-
 # 모델 동결 - 결국 가중치들이 학습되지 않도록 설정하는 거긴 한데...전에 이거 말고 뭔가 더 있던 같긴 한데...
 for param in model.parameters():
     param.requires_grad = False
@@ -28,6 +25,9 @@ for param in model.final_norm.parameters():
 # 이렇게 세 가지를 추가로 학습시키면 결과가 좋아진다고...나중에 나도 이런 실험을 해봐야겠다...
 
 if __name__ == "__main__":
+    # 바꾸기 전에 모델 구조 출력
+    print(model)
+
     # 일단 이 모델이 작동하는 방식을 테스트해보면...우선 스팸검사 텍스트를 넣고...
     inputs = tokenizer.encode("Do you have time")
     inputs = torch.tensor(inputs).unsqueeze(0)
