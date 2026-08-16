@@ -133,7 +133,7 @@ if __name__ == "__main__":
     print(custom_collate_draft_1(batch))
 
     # custom_collate_draft_2 테스트
-    inputs, targets = custom_collate_draft_2(batch)
+    inputs, targets = custom_collate_draft_2(tokenizer)
     print(inputs)
     print(targets)
 
